@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>验证码登录 · 手写数字识别</title>
+<title>验证码图片选择 · 手写数字识别</title>
 <style>
 :root {
   --primary: #4F46E5;
@@ -47,10 +47,9 @@ body{
   padding:16px;
 }
 
-/* ---- view switching ---- */
 #app{
   width:100%;
-  max-width:420px;
+  max-width:640px;
   position:relative;
   min-height:560px;
 }
@@ -73,7 +72,6 @@ body{
   pointer-events:auto;
 }
 
-/* ---- shared card ---- */
 .card{
   background:#fff;
   border-radius:var(--radius-lg);
@@ -81,10 +79,7 @@ body{
   overflow:hidden;
 }
 
-/* ---- login page ---- */
-.login-container{
-  animation:slideUp 0.5s ease;
-}
+.login-container{animation:slideUp 0.5s ease;}
 
 @keyframes slideUp{
   from{opacity:0;transform:translateY(24px);}
@@ -92,7 +87,7 @@ body{
 }
 
 .login-header{
-  padding:32px 32px 0;
+  padding:28px 28px 0;
   text-align:center;
 }
 
@@ -112,99 +107,134 @@ body{
 
 .login-header p{font-size:14px;color:var(--gray-500);}
 
-.login-body{padding:28px 32px 32px;}
+.login-body{padding:24px 28px 28px;}
 
-.login-tabs{
-  display:flex;
-  background:var(--gray-100);
-  border-radius:var(--radius-sm);
-  padding:3px;
-  margin-bottom:24px;
+/* ---- target digit display ---- */
+.target-section{
+  text-align:center;
+  background:linear-gradient(135deg,var(--primary-light),#F5F3FF);
+  border:2px solid #C7D2FE;
+  border-radius:var(--radius);
+  padding:20px 16px;
+  margin-bottom:20px;
 }
 
-.login-tabs button{
-  flex:1;
-  padding:8px 16px;
-  border:none;
-  background:transparent;
-  border-radius:6px;
+.target-label{
   font-size:13px;
-  font-weight:500;
+  font-weight:600;
   color:var(--gray-600);
+  margin-bottom:8px;
+}
+
+.target-code{
+  font-size:48px;
+  font-weight:800;
+  color:var(--primary);
+  letter-spacing:12px;
+  line-height:1.2;
+}
+
+.target-hint{
+  font-size:14px;
+  color:var(--gray-600);
+  margin-top:10px;
+  font-weight:500;
+}
+
+/* ---- captcha grid ---- */
+.captcha-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.captcha-item{
+  background:var(--gray-50);
+  border:3px solid var(--gray-200);
+  border-radius:var(--radius);
+  overflow:hidden;
   cursor:pointer;
   transition:var(--transition);
-}
-
-.login-tabs button.active{
-  background:#fff;
-  color:var(--primary);
-  box-shadow:var(--shadow-sm);
-  font-weight:600;
-}
-
-.form-group{margin-bottom:18px;position:relative;}
-
-.form-label{
-  display:block;
-  font-size:13px;
-  font-weight:600;
-  color:var(--gray-700);
-  margin-bottom:6px;
-}
-
-.form-label .required{color:var(--danger);margin-left:2px;}
-
-.input-wrapper{
   position:relative;
-  display:flex;
-  align-items:center;
-  border:2px solid var(--gray-200);
-  border-radius:var(--radius-sm);
-  background:var(--gray-50);
-  transition:var(--transition);
+  text-align:center;
 }
 
-.input-wrapper:focus-within{
+.captcha-item:hover{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,0.15);}
+
+.captcha-item.selected{
   border-color:var(--primary);
-  background:#fff;
-  box-shadow:0 0 0 3px rgba(79,70,229,0.1);
+  background:var(--primary-light);
+  box-shadow:0 0 0 3px rgba(79,70,229,0.25);
 }
 
-.input-wrapper.error{border-color:var(--danger);background:var(--danger-light);}
+.captcha-item.wrong{
+  border-color:var(--danger);
+  background:var(--danger-light);
+  animation:shake 0.5s ease;
+}
 
-.input-wrapper.error:focus-within{box-shadow:0 0 0 3px rgba(239,68,68,0.1);}
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(4px);}
+}
 
-.input-wrapper.success{border-color:var(--success);}
+.captcha-item.correct{
+  border-color:var(--success);
+  background:var(--success-light);
+  box-shadow:0 0 0 3px rgba(16,185,129,0.25);
+}
 
-.input-icon{
+.captcha-number{
+  position:absolute;
+  top:8px;
+  left:10px;
+  background:rgba(0,0,0,0.55);
+  color:#fff;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  font-size:12px;
+  font-weight:700;
   display:flex;
   align-items:center;
   justify-content:center;
-  width:40px;
-  height:44px;
-  color:var(--gray-400);
-  flex-shrink:0;
+  z-index:2;
 }
 
-.input-wrapper:focus-within .input-icon{color:var(--primary);}
-
-.form-input{
-  flex:1;
-  border:none;
-  background:transparent;
-  padding:12px 12px 12px 0;
-  font-size:15px;
-  color:var(--gray-900);
-  outline:none;
-  min-width:0;
+.captcha-item.selected .captcha-number{
+  background:var(--primary);
 }
 
-.form-input::placeholder{color:var(--gray-400);}
+.captcha-item img{
+  width:100%;
+  height:88px;
+  object-fit:contain;
+  display:block;
+}
 
-.sms-row{display:flex;gap:10px;}
+.captcha-item .check-mark{
+  position:absolute;
+  top:8px;
+  right:10px;
+  width:28px;
+  height:28px;
+  background:var(--success);
+  border-radius:50%;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:2;
+}
 
-.sms-row .input-wrapper{flex:1;}
+.captcha-item.correct .check-mark{display:flex;}
 
+.captcha-item.correct .check-mark svg{width:16px;height:16px;color:#fff;}
+
+/* ---- buttons ---- */
 .btn{
   display:inline-flex;
   align-items:center;
@@ -224,15 +254,9 @@ body{
 
 .btn:active{transform:scale(0.97);}
 
-.btn-sms{background:var(--primary-light);color:var(--primary);min-width:120px;}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
 
-.btn-sms:hover:not(:disabled){background:#E0E7FF;}
-
-.btn-sms:disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed;}
-
-.btn-sms.counting{background:var(--gray-100);color:var(--gray-500);}
-
-.btn-login{
+.btn-verify{
   width:100%;
   padding:13px 20px;
   background:var(--primary);
@@ -241,14 +265,12 @@ body{
   margin-top:8px;
 }
 
-.btn-login:hover:not(:disabled){
+.btn-verify:hover:not(:disabled){
   background:var(--primary-hover);
   box-shadow:0 4px 12px rgba(79,70,229,0.35);
 }
 
-.btn-login:disabled{background:var(--gray-300);cursor:not-allowed;box-shadow:none;}
-
-.btn-login .spinner{
+.btn-verify .spinner{
   display:none;
   width:18px;height:18px;
   border:2px solid rgba(255,255,255,0.3);
@@ -257,67 +279,26 @@ body{
   animation:spin 0.6s linear infinite;
 }
 
-.btn-login.loading .spinner{display:block;}
+.btn-verify.loading .spinner{display:block;}
 
-.btn-login.loading .btn-text{display:none;}
+.btn-verify.loading .btn-text{display:none;}
 
 @keyframes spin{to{transform:rotate(360deg);}}
 
-.captcha-section{margin-bottom:18px;}
-
-.captcha-image-wrap{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-
-.captcha-image{
-  flex:1;
-  height:48px;
-  background:var(--gray-50);
-  border:2px solid var(--gray-200);
-  border-radius:var(--radius-sm);
-  cursor:pointer;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  transition:var(--transition);
-  position:relative;
-}
-
-.captcha-image:hover{border-color:var(--primary);}
-
-.captcha-image img{height:100%;width:100%;object-fit:contain;}
-
-.captcha-image .overlay{
-  position:absolute;
-  inset:0;
-  background:rgba(0,0,0,0.03);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  opacity:0;
-  transition:opacity 0.2s;
-  font-size:12px;
-  color:var(--primary);
-  font-weight:500;
-}
-
-.captcha-image:hover .overlay{opacity:1;}
-
 .btn-refresh{
-  padding:10px;
-  min-width:40px;
-  height:48px;
-  background:var(--gray-50);
+  width:100%;
+  margin-top:10px;
+  background:var(--gray-100);
+  color:var(--gray-700);
   border:2px solid var(--gray-200);
-  color:var(--gray-600);
-  border-radius:var(--radius-sm);
 }
 
-.btn-refresh:hover{background:var(--gray-100);border-color:var(--gray-300);}
+.btn-refresh:hover:not(:disabled){
+  background:var(--gray-200);
+  border-color:var(--gray-300);
+}
 
-.btn-refresh svg{width:18px;height:18px;transition:transform 0.3s;}
-
-.btn-refresh:active svg{transform:rotate(180deg);}
-
+/* ---- messages ---- */
 .error-message,.success-message,.info-message{
   display:flex;
   align-items:flex-start;
@@ -345,30 +326,7 @@ body{
 
 .message-text{flex:1;line-height:1.5;}
 
-.field-error{
-  font-size:12px;
-  color:var(--danger);
-  margin-top:4px;
-  display:none;
-  align-items:center;
-  gap:4px;
-  animation:slideDown 0.2s ease;
-}
-
-.field-error svg{width:14px;height:14px;flex-shrink:0;}
-
-.login-footer{text-align:center;padding:0 32px 24px;font-size:12px;color:var(--gray-400);}
-
-.divider{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin:20px 0;
-  color:var(--gray-400);
-  font-size:12px;
-}
-
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+.login-footer{text-align:center;padding:0 28px 20px;font-size:12px;color:var(--gray-400);}
 
 /* ============== digit recognition page ============== */
 
@@ -421,7 +379,6 @@ body{
 
 .digit-title p{font-size:13px;color:var(--gray-500);}
 
-/* ---- mode toggle ---- */
 .mode-toggle-row{
   display:flex;
   align-items:center;
@@ -474,7 +431,6 @@ body{
 
 .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px);}
 
-/* ---- multi-digit result ---- */
 .multi-result{
   text-align:center;
   padding:12px;
@@ -680,14 +636,13 @@ body{
 
 .tips-box strong{display:block;margin-bottom:2px;}
 
-/* ---- responsive ---- */
-@media (max-width:480px){
+@media (max-width:540px){
   .login-header{padding:24px 20px 0;}
   .login-body{padding:20px 20px 24px;}
   .login-footer{padding:0 20px 20px;}
-  .login-header h1{font-size:20px;}
-  .sms-row{flex-direction:column;gap:8px;}
-  .btn-sms{width:100%;}
+  .captcha-grid{gap:8px;}
+  .captcha-item img{height:64px;}
+  .target-code{font-size:36px;letter-spacing:8px;}
   .digit-header{padding:18px 20px 0;}
   .digit-body{padding:16px 20px 24px;}
   .digit-title{padding:10px 20px 0;}
@@ -698,7 +653,6 @@ body{
 
 <div id="app">
 
-  <!-- ===================== LOGIN PAGE ===================== -->
   <div class="page visible" id="loginPage">
     <div class="card login-container">
       <div class="login-header">
@@ -709,81 +663,65 @@ body{
             <circle cx="12" cy="16" r="1"/>
           </svg>
         </div>
-        <h1>验证码登录</h1>
-        <p>请输入您的账号信息完成登录</p>
+        <h1>安全验证</h1>
+        <p>请选择包含目标数字的验证码图片</p>
       </div>
 
       <div class="login-body">
         <div id="globalMessage"></div>
 
-        <div class="login-tabs">
-          <button id="tabPhone" class="active" onclick="switchTab('phone')">手机号登录</button>
-          <button id="tabEmail" onclick="switchTab('email')">邮箱登录</button>
+        <div class="target-section">
+          <div class="target-label">请找出包含以下数字的验证码图片</div>
+          <div class="target-code" id="targetCode">----</div>
+          <div class="target-hint">这串数字出现在哪张验证码图片中？</div>
         </div>
 
-        <div id="contactField" class="form-group">
-          <label class="form-label">手机号<span class="required">*</span></label>
-          <div class="input-wrapper" id="contactWrapper">
-            <span class="input-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-              </svg>
+        <div class="captcha-grid" id="captchaGrid">
+          <div class="captcha-item" data-index="1" onclick="selectCaptcha(1)">
+            <span class="captcha-number">1</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
-            <input type="tel" class="form-input" id="contactInput" placeholder="请输入11位手机号" maxlength="11" autocomplete="tel">
+            <img src="" alt="验证码 1" id="captchaImg1">
           </div>
-          <div id="contactError" class="field-error"></div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">短信验证码<span class="required">*</span></label>
-          <div class="sms-row">
-            <div class="input-wrapper" id="smsWrapper">
-              <span class="input-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-              </span>
-              <input type="text" class="form-input" id="smsInput" placeholder="请输入短信验证码" maxlength="6" inputmode="numeric">
-            </div>
-            <button class="btn btn-sms" id="btnSendSms" onclick="sendSmsCode()">获取验证码</button>
-          </div>
-          <div id="smsError" class="field-error"></div>
-        </div>
-
-        <div class="divider">图形验证码</div>
-
-        <div class="captcha-section">
-          <div class="captcha-image-wrap">
-            <div class="captcha-image" id="captchaImage" onclick="refreshCaptcha()">
-              <img id="captchaImg" src="" alt="验证码" style="display:none">
-              <span id="captchaPlaceholder" style="color:var(--gray-400);font-size:13px">点击加载验证码</span>
-              <div class="overlay">点击刷新</div>
-            </div>
-            <button class="btn btn-refresh" onclick="refreshCaptcha()" title="刷新验证码">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-              </svg>
-            </button>
-          </div>
-          <div class="input-wrapper" id="captchaWrapper">
-            <span class="input-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
+          <div class="captcha-item" data-index="2" onclick="selectCaptcha(2)">
+            <span class="captcha-number">2</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
-            <input type="text" class="form-input" id="captchaInput" placeholder="请输入图形验证码" maxlength="4" inputmode="numeric" autocomplete="off">
+            <img src="" alt="验证码 2" id="captchaImg2">
           </div>
-          <div id="captchaError" class="field-error"></div>
+          <div class="captcha-item" data-index="3" onclick="selectCaptcha(3)">
+            <span class="captcha-number">3</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 3" id="captchaImg3">
+          </div>
+          <div class="captcha-item" data-index="4" onclick="selectCaptcha(4)">
+            <span class="captcha-number">4</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 4" id="captchaImg4">
+          </div>
         </div>
 
-        <button class="btn btn-login" id="btnLogin" onclick="handleLogin()">
+        <button class="btn btn-verify" id="btnVerify" onclick="verifyCaptcha()" disabled>
           <span class="spinner"></span>
-          <span class="btn-text">登 录</span>
+          <span class="btn-text">请先选择一张图片</span>
+        </button>
+
+        <button class="btn btn-refresh" id="btnRefresh" onclick="refreshChallenge()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          换一组验证码
         </button>
       </div>
 
-      <div class="login-footer">安全登录 · 数据加密传输</div>
+      <div class="login-footer">安全验证 · 数据加密传输</div>
     </div>
   </div>
 
@@ -801,7 +739,7 @@ body{
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
           </svg>
-          <span id="userName">--</span>
+          <span id="userName">已验证</span>
         </span>
       </div>
 
@@ -861,16 +799,11 @@ body{
 
 <script>
 var API = '';
-var currentTab = 'phone';
-var smsSessionId = '';
-var captchaSessionId = '';
+var sessionId = '';
 var authToken = '';
-var userName = '';
-var smsCountdown = 0;
-var countdownTimer = null;
-var captchaLoading = false;
-var loginLoading = false;
 var digitMode = 'single';
+var selectedIndex = 0;
+var verifying = false;
 
 function $(id){return document.getElementById(id);}
 
@@ -885,69 +818,7 @@ function switchView(showId, hideId){
   show.classList.add('visible');
 }
 
-/* ===================== LOGIN ===================== */
-
-function switchTab(tab){
-  currentTab = tab;
-  var phoneTab = $('tabPhone');
-  var emailTab = $('tabEmail');
-  var contactInput = $('contactInput');
-  var contactWrapper = $('contactWrapper');
-  var label = contactInput.closest('.form-group').querySelector('.form-label');
-
-  phoneTab.classList.toggle('active', tab === 'phone');
-  emailTab.classList.toggle('active', tab === 'email');
-
-  if(tab === 'phone'){
-    label.innerHTML = '手机号<span class="required">*</span>';
-    contactInput.placeholder = '请输入11位手机号';
-    contactInput.maxLength = 11;
-    contactInput.type = 'tel';
-    contactInput.value = '';
-    contactInput.setAttribute('inputmode','numeric');
-  }else{
-    label.innerHTML = '邮箱<span class="required">*</span>';
-    contactInput.placeholder = '请输入邮箱地址';
-    contactInput.maxLength = 100;
-    contactInput.type = 'email';
-    contactInput.value = '';
-    contactInput.setAttribute('inputmode','email');
-  }
-
-  clearContactError();
-  contactWrapper.classList.remove('error','success');
-}
-
-function clearAllErrors(){
-  [$('contactError'),$('smsError'),$('captchaError')].forEach(function(el){
-    el.style.display = 'none';
-    el.innerHTML = '';
-  });
-  [$('contactWrapper'),$('smsWrapper'),$('captchaWrapper')].forEach(function(el){
-    el.classList.remove('error','success');
-  });
-  $('globalMessage').innerHTML = '';
-}
-
-function showFieldError(elementId,wrapperId,message){
-  var el=$(elementId);
-  var wrapper=$(wrapperId);
-  el.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'+message;
-  el.style.display='flex';
-  wrapper.classList.add('error');
-}
-
-function showFieldSuccess(wrapperId){$(wrapperId).classList.remove('error');$(wrapperId).classList.add('success');}
-
-function clearFieldError(elementId,wrapperId){$(elementId).style.display='none';$(elementId).innerHTML='';$(wrapperId).classList.remove('error','success');}
-
-function clearContactError(){clearFieldError('contactError','contactWrapper');}
-
-function clearSmsError(){clearFieldError('smsError','smsWrapper');}
-
-function clearCaptchaError(){clearFieldError('captchaError','captchaWrapper');}
-
-function showGlobalMessage(type,message){
+function showGlobalMessage(type, message){
   var icons={
     error:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
     success:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
@@ -957,7 +828,161 @@ function showGlobalMessage(type,message){
   $('globalMessage').innerHTML='<div class="'+cls+'">'+icons[type]+'<span class="message-text">'+message+'</span></div>';
 }
 
-function showDigitMessage(type,message){
+/* ===================== CAPTCHA CHALLENGE ===================== */
+
+async function refreshChallenge(){
+  $('globalMessage').innerHTML = '';
+  selectedIndex = 0;
+  var btn = $('btnVerify');
+  btn.disabled = true;
+  btn.classList.remove('loading');
+  btn.querySelector('.btn-text').textContent = '请先选择一张图片';
+
+  document.querySelectorAll('.captcha-item').forEach(function(el){
+    el.classList.remove('selected', 'correct', 'wrong');
+  });
+
+  $('targetCode').textContent = '----';
+
+  for (var i = 1; i <= 4; i++) {
+    $('captchaImg' + i).src = '';
+  }
+
+  try {
+    var resp = await fetch(API + '/api/captcha-challenge');
+    var data = await resp.json();
+
+    if (data.session_id && data.images && data.target_code) {
+      sessionId = data.session_id;
+      for (var i = 0; i < data.images.length; i++) {
+        $('captchaImg' + (i + 1)).src = data.images[i];
+      }
+      $('targetCode').textContent = data.target_code;
+    } else {
+      showGlobalMessage('error', data.error || '获取验证码失败');
+    }
+  } catch (e) {
+    showGlobalMessage('error', '网络错误，请确保服务已启动');
+  }
+}
+
+function selectCaptcha(index){
+  if (verifying) return;
+
+  document.querySelectorAll('.captcha-item').forEach(function(el){
+    el.classList.remove('selected');
+  });
+
+  $('globalMessage').innerHTML = '';
+  selectedIndex = index;
+
+  var item = document.querySelector('.captcha-item[data-index="' + index + '"]');
+  item.classList.add('selected');
+
+  var btn = $('btnVerify');
+  btn.disabled = false;
+  btn.querySelector('.btn-text').textContent = '确认选择（第 ' + index + ' 张图片）';
+}
+
+async function verifyCaptcha(){
+  if (verifying) return;
+  if (!selectedIndex) {
+    showGlobalMessage('info', '请先点击选择一张验证码图片');
+    return;
+  }
+
+  verifying = true;
+  var btn = $('btnVerify');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    var resp = await fetch(API + '/api/verify-captcha', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId, selected: selectedIndex})
+    });
+    var data = await resp.json();
+
+    if (data.success) {
+      var item = document.querySelector('.captcha-item[data-index="' + selectedIndex + '"]');
+      item.classList.add('correct');
+
+      authToken = data.auth_token;
+      showGlobalMessage('success', data.message || '验证通过！');
+
+      setTimeout(function(){
+        navigateToDigit();
+      }, 800);
+    } else {
+      var item = document.querySelector('.captcha-item[data-index="' + selectedIndex + '"]');
+      item.classList.add('wrong');
+      showGlobalMessage('error', data.message || '验证失败');
+
+      selectedIndex = 0;
+      btn.querySelector('.btn-text').textContent = '请先选择一张图片';
+      btn.disabled = true;
+
+      setTimeout(function(){
+        document.querySelectorAll('.captcha-item').forEach(function(el){
+          el.classList.remove('wrong', 'selected', 'correct');
+        });
+      }, 1200);
+
+      if (data.message && data.message.indexOf('过期') !== -1) {
+        setTimeout(refreshChallenge, 1500);
+      }
+    }
+  } catch (e) {
+    showGlobalMessage('error', '网络错误，请稍后重试');
+  } finally {
+    verifying = false;
+    btn.classList.remove('loading');
+  }
+}
+
+/* ===================== DIGIT RECOGNITION ===================== */
+
+function navigateToDigit(){
+  digitMode = 'single';
+  $('modeToggle').checked = false;
+  updateModeUI();
+  initCanvas();
+  $('digitMessage').innerHTML = '';
+  resetResults();
+  switchView('digitPage', 'loginPage');
+}
+
+function switchDigitMode(){
+  digitMode = $('modeToggle').checked ? 'multi' : 'single';
+  updateModeUI();
+  resetResults();
+  $('digitMessage').innerHTML = '';
+}
+
+function updateModeUI(){
+  var isMulti = digitMode === 'multi';
+  $('modeLabelSingle').classList.toggle('active', !isMulti);
+  $('modeLabelMulti').classList.toggle('active', isMulti);
+  if (isMulti) {
+    $('digitSubtitle').textContent = '在下方区域书写多个数字，系统将自动分割并逐个识别';
+    $('drawingPlaceholder').textContent = '在此处书写多个数字（左右排列）';
+    $('tipsBox').innerHTML = '<strong>使用小贴士：</strong>数字之间保持适当间距 · 从左到右书写 · 书写清晰避免连笔';
+  } else {
+    $('digitSubtitle').textContent = '在下方区域书写一个 0–9 的数字，然后点击识别';
+    $('drawingPlaceholder').textContent = '在此处书写数字';
+    $('tipsBox').innerHTML = '<strong>使用小贴士：</strong>尽量把数字写在区域正中间 · 使用连贯的笔画 · 如果结果不理想，清空后重新书写';
+  }
+}
+
+function logout(){
+  authToken = '';
+  selectedIndex = 0;
+  switchView('loginPage', 'digitPage');
+  refreshChallenge();
+}
+
+function showDigitMessage(type, message){
   var icons={
     error:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
     success:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
@@ -965,205 +990,6 @@ function showDigitMessage(type,message){
   };
   var cls=type==='error'?'error-message':type==='success'?'success-message':'info-message';
   $('digitMessage').innerHTML='<div class="'+cls+'">'+icons[type]+'<span class="message-text">'+message+'</span></div>';
-}
-
-function validateContact(){
-  var value=$('contactInput').value.trim();
-  if(!value){showFieldError('contactError','contactWrapper',currentTab==='phone'?'请输入手机号':'请输入邮箱');return false;}
-  if(currentTab==='phone'){
-    var digits=value.replace(/\D/g,'');
-    if(digits.length!==11){showFieldError('contactError','contactWrapper','请输入正确的11位手机号');return false;}
-  }else{
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)){showFieldError('contactError','contactWrapper','请输入正确的邮箱地址');return false;}
-  }
-  clearFieldError('contactError','contactWrapper');
-  showFieldSuccess('contactWrapper');
-  return true;
-}
-
-async function sendSmsCode(){
-  clearAllErrors();
-  if(!validateContact())return;
-  if(smsCountdown>0)return;
-
-  var contact=$('contactInput').value.trim();
-  var btn=$('btnSendSms');
-  btn.disabled=true;
-  btn.textContent='发送中...';
-
-  try{
-    var resp=await fetch(API+'/api/send-code',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contact:contact})
-    });
-    var data=await resp.json();
-
-    if(data.success){
-      smsSessionId=data.session_id;
-      var msg=data.message||'验证码已发送';
-      if(data.demo_code){
-        msg+='（演示模式：验证码为 <b style="letter-spacing:4px;font-size:18px;color:#4F46E5">'+data.demo_code+'</b>）';
-      }
-      showGlobalMessage('success',msg);
-      startCountdown();
-      $('smsInput').focus();
-    }else{
-      showGlobalMessage('error',data.message||'发送失败');
-      btn.disabled=false;
-      btn.textContent='获取验证码';
-    }
-  }catch(e){
-    showGlobalMessage('error','网络错误，请稍后重试');
-    btn.disabled=false;
-    btn.textContent='获取验证码';
-  }
-}
-
-function startCountdown(){
-  smsCountdown=60;
-  var btn=$('btnSendSms');
-  btn.classList.add('counting');
-  updateCountdown();
-  countdownTimer=setInterval(function(){
-    smsCountdown--;
-    if(smsCountdown<=0){
-      clearInterval(countdownTimer);
-      countdownTimer=null;
-      btn.classList.remove('counting');
-      btn.disabled=false;
-      btn.textContent='重新获取';
-    }else{updateCountdown();}
-  },1000);
-}
-
-function updateCountdown(){$('btnSendSms').textContent=smsCountdown+'s 后重发';}
-
-async function refreshCaptcha(){
-  if(captchaLoading)return;
-  captchaLoading=true;
-  var img=$('captchaImg');
-  var placeholder=$('captchaPlaceholder');
-  img.style.opacity='0.4';
-  try{
-    var resp=await fetch(API+'/api/captcha');
-    var data=await resp.json();
-    if(data.session_id&&data.captcha_image){
-      captchaSessionId=data.session_id;
-      img.src=data.captcha_image;
-      img.style.display='block';
-      img.style.opacity='1';
-      placeholder.style.display='none';
-    }else{
-      showGlobalMessage('error',data.error||'获取验证码失败');
-    }
-  }catch(e){
-    showGlobalMessage('error','获取图形验证码失败，请检查服务是否启动');
-  }finally{captchaLoading=false;}
-}
-
-async function handleLogin(){
-  if(loginLoading)return;
-  clearAllErrors();
-
-  var contact=$('contactInput').value.trim();
-  var smsCode=$('smsInput').value.trim();
-  var captchaInput=$('captchaInput').value.trim();
-
-  if(!contact){showFieldError('contactError','contactWrapper',currentTab==='phone'?'请输入手机号':'请输入邮箱');return;}
-  if(!smsCode){showFieldError('smsError','smsWrapper','请输入短信验证码');return;}
-  if(!captchaInput){showFieldError('captchaError','captchaWrapper','请输入图形验证码');return;}
-  if(captchaInput.length!==4||!/^\d+$/.test(captchaInput)){showFieldError('captchaError','captchaWrapper','请输入4位数字验证码');return;}
-
-  loginLoading=true;
-  var btn=$('btnLogin');
-  btn.classList.add('loading');
-  btn.disabled=true;
-
-  try{
-    var resp=await fetch(API+'/api/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contact:contact,
-        sms_code:smsCode,
-        captcha_input:captchaInput,
-        sms_session_id:smsSessionId,
-        captcha_session_id:captchaSessionId
-      })
-    });
-    var data=await resp.json();
-
-    if(data.success){
-      authToken=data.auth_token;
-      userName=contact;
-      showGlobalMessage('success',data.message||'登录成功！');
-
-      setTimeout(function(){
-        navigateToDigit();
-      },600);
-    }else{
-      showGlobalMessage('error',data.message||'登录失败');
-      if(data.message&&data.message.indexOf('图形验证码')!==-1){
-        showFieldError('captchaError','captchaWrapper',data.message);
-        refreshCaptcha();
-      }else if(data.message&&data.message.indexOf('短信验证码')!==-1){
-        showFieldError('smsError','smsWrapper',data.message);
-      }
-    }
-  }catch(e){
-    showGlobalMessage('error','网络错误，请稍后重试');
-  }finally{
-    loginLoading=false;
-    btn.classList.remove('loading');
-    btn.disabled=false;
-  }
-}
-
-/* ===================== ENTER DIGIT PAGE ===================== */
-
-function navigateToDigit(){
-  $('userName').textContent=userName;
-  digitMode='single';
-  $('modeToggle').checked=false;
-  updateModeUI();
-  initCanvas();
-  $('digitMessage').innerHTML='';
-  resetResults();
-  switchView('digitPage','loginPage');
-}
-
-function switchDigitMode(){
-  digitMode=$('modeToggle').checked?'multi':'single';
-  updateModeUI();
-  resetResults();
-  $('digitMessage').innerHTML='';
-}
-
-function updateModeUI(){
-  var isMulti=digitMode==='multi';
-  $('modeLabelSingle').classList.toggle('active',!isMulti);
-  $('modeLabelMulti').classList.toggle('active',isMulti);
-  if(isMulti){
-    $('digitSubtitle').textContent='在下方区域书写多个数字，系统将自动分割并逐个识别';
-    $('drawingPlaceholder').textContent='在此处书写多个数字（左右排列）';
-    $('tipsBox').innerHTML='<strong>使用小贴士：</strong>数字之间保持适当间距 · 从左到右书写 · 书写清晰避免连笔';
-  }else{
-    $('digitSubtitle').textContent='在下方区域书写一个 0–9 的数字，然后点击识别';
-    $('drawingPlaceholder').textContent='在此处书写数字';
-    $('tipsBox').innerHTML='<strong>使用小贴士：</strong>尽量把数字写在区域正中间 · 使用连贯的笔画 · 如果结果不理想，清空后重新书写';
-  }
-}
-
-function logout(){
-  authToken='';
-  userName='';
-  switchView('loginPage','digitPage');
-  clearAllErrors();
-  $('contactInput').value='';
-  $('smsInput').value='';
-  $('captchaInput').value='';
-  refreshCaptcha();
 }
 
 /* ===================== CANVAS DRAWING ===================== */
@@ -1261,7 +1087,6 @@ function renderResults(data){
   var digit=data.predicted_digit;
   var conf=data.confidence;
   var probs=data.probabilities;
-  var top3=data.top3;
 
   var html='<div class="result-digit">\
     <div class="big-digit">'+digit+'</div>\
@@ -1345,20 +1170,10 @@ async function recognizeDigit(){
   }
 }
 
-/* ===================== EVENT BINDING ===================== */
+/* ===================== INIT ===================== */
 
-document.addEventListener('DOMContentLoaded',function(){
-  $('contactInput').addEventListener('input',function(){
-    clearContactError();
-    $('contactWrapper').classList.remove('error','success');
-    if($('contactInput').value.trim())showFieldSuccess('contactWrapper');
-  });
-  $('contactInput').addEventListener('keydown',function(e){if(e.key==='Enter')sendSmsCode();});
-  $('smsInput').addEventListener('input',clearSmsError);
-  $('smsInput').addEventListener('keydown',function(e){if(e.key==='Enter')$('captchaInput').focus();});
-  $('captchaInput').addEventListener('input',clearCaptchaError);
-  $('captchaInput').addEventListener('keydown',function(e){if(e.key==='Enter')handleLogin();});
-  refreshCaptcha();
+document.addEventListener('DOMContentLoaded', function(){
+  refreshChallenge();
 });
 </script>
 

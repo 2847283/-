@@ -1,5 +1,5 @@
 """
-验证码登录 + 手写数字识别 Web 服务端
+验证码图片选择验证 + 手写数字识别 Web 服务端
 启动: python web_server.py
 """
 from __future__ import annotations
@@ -91,46 +91,221 @@ def _clean_sessions():
         del SESSIONS[sid]
 
 
-def _generate_simple_captcha():
+def _bezier_point(pts, t):
+    mt = 1 - t
+    x = mt**3 * pts[0][0] + 3 * mt**2 * t * pts[1][0] + 3 * mt * t**2 * pts[2][0] + t**3 * pts[3][0]
+    y = mt**3 * pts[0][1] + 3 * mt**2 * t * pts[1][1] + 3 * mt * t**2 * pts[2][1] + t**3 * pts[3][1]
+    return x, y
+
+
+def _apply_wave_distortion(img_array, seed):
+    rng = np.random.default_rng(seed)
+    h, w = img_array.shape[:2]
+    amp_x = float(rng.uniform(2.5, 6.0))
+    amp_y = float(rng.uniform(2.5, 5.5))
+    freq = float(rng.uniform(0.012, 0.030))
+    p1 = float(rng.uniform(0, 2 * np.pi))
+    p2 = float(rng.uniform(0, 2 * np.pi))
+    p3 = float(rng.uniform(0, 2 * np.pi))
+    p4 = float(rng.uniform(0, 2 * np.pi))
+
+    y_idx, x_idx = np.meshgrid(np.arange(h, dtype=np.float32),
+                               np.arange(w, dtype=np.float32), indexing='ij')
+
+    x_map = x_idx + amp_x * np.sin(2 * np.pi * y_idx * freq + p1) \
+            + amp_x * 0.35 * np.sin(2 * np.pi * y_idx * freq * 2.7 + p2)
+    y_map = y_idx + amp_y * np.cos(2 * np.pi * x_idx * freq * 1.4 + p3) \
+            + amp_y * 0.35 * np.cos(2 * np.pi * x_idx * freq * 2.3 + p4)
+
+    x_map = np.clip(x_map, 0, w - 1)
+    y_map = np.clip(y_map, 0, h - 1)
+
+    x0 = np.floor(x_map).astype(np.int32)
+    y0 = np.floor(y_map).astype(np.int32)
+    x1 = np.minimum(x0 + 1, w - 1).astype(np.int32)
+    y1 = np.minimum(y0 + 1, h - 1).astype(np.int32)
+
+    wx = x_map - x0.astype(np.float32)
+    wy = y_map - y0.astype(np.float32)
+
+    img_f = img_array.astype(np.float32)
+    if len(img_array.shape) == 3:
+        result = np.zeros_like(img_f)
+        for c in range(3):
+            i00 = img_f[y0, x0, c]
+            i01 = img_f[y0, x1, c]
+            i10 = img_f[y1, x0, c]
+            i11 = img_f[y1, x1, c]
+            result[:, :, c] = ((1 - wx) * (1 - wy) * i00 + wx * (1 - wy) * i01 +
+                               (1 - wx) * wy * i10 + wx * wy * i11)
+    else:
+        i00 = img_f[y0, x0]
+        i01 = img_f[y0, x1]
+        i10 = img_f[y1, x0]
+        i11 = img_f[y1, x1]
+        result = ((1 - wx) * (1 - wy) * i00 + wx * (1 - wy) * i01 +
+                  (1 - wx) * wy * i10 + wx * wy * i11)
+
+    return np.clip(result, 0, 255).astype(np.uint8)
+
+
+def _generate_enhanced_captcha():
     from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
     code = "".join(str(random.randint(0, 9)) for _ in range(4))
     w, h = 448, 112
-    img = Image.new("L", (w, h), color=240)
-    draw = ImageDraw.Draw(img)
+    seed = random.randint(0, 2**31 - 1)
+    rng = random.Random(seed)
 
-    for i in range(60):
-        x1 = random.randint(0, w)
-        y1 = random.randint(0, h)
-        x2 = x1 + random.randint(-30, 30)
-        y2 = y1 + random.randint(-30, 30)
-        draw.line([(x1, y1), (x2, y2)], fill=random.randint(120, 200), width=1)
+    # ---- high-contrast multi-color palettes ----
+    text_palettes = [
+        [(220, 35, 35), (25, 75, 200), (210, 110, 0), (25, 165, 65)],
+        [(185, 20, 105), (20, 145, 145), (145, 35, 185), (20, 105, 45)],
+        [(205, 55, 20), (20, 55, 185), (165, 20, 125), (20, 155, 85)],
+        [(30, 35, 185), (190, 35, 30), (20, 135, 45), (165, 75, 20)],
+        [(175, 20, 30), (20, 105, 175), (175, 90, 20), (20, 145, 95)],
+        [(195, 50, 40), (40, 40, 195), (25, 160, 70), (180, 30, 120)],
+    ]
+    colors = list(rng.choice(text_palettes))
+    rng.shuffle(colors)
 
-    for i in range(300):
-        x = random.randint(0, w)
-        y = random.randint(0, h)
-        draw.point((x, y), fill=random.randint(80, 200))
+    # ---- random background gradient ----
+    bg_img = Image.new('RGB', (w, h))
+    bg_draw = ImageDraw.Draw(bg_img)
+    for y_px in range(h):
+        ratio = y_px / h
+        rr = int(230 + 20 * ratio + rng.randint(-8, 8))
+        gr = int(230 + 18 * ratio + rng.randint(-8, 8))
+        br = int(228 + 22 * ratio + rng.randint(-8, 8))
+        bg_draw.line([(0, y_px), (w, y_px)], fill=(max(0, min(255, rr)),
+                     max(0, min(255, gr)), max(0, min(255, br))))
 
-    try:
-        font = ImageFont.truetype("arial.ttf", 60)
-    except Exception:
+    # ---- background grid lines ----
+    bg_draw = ImageDraw.Draw(bg_img)
+    for _ in range(rng.randint(10, 18)):
+        x1 = rng.randint(0, w)
+        y1 = rng.randint(0, h)
+        x2 = x1 + rng.randint(-80, 80)
+        y2 = y1 + rng.randint(-80, 80)
+        shade = rng.randint(15, 45)
+        bg_draw.line([(x1, y1), (x2, y2)], fill=(210 - shade, 210 - shade, 208 - shade),
+                     width=rng.randint(1, 2))
+
+    # ---- background dot pattern ----
+    for _ in range(rng.randint(200, 400)):
+        px = rng.randint(0, w - 1)
+        py = rng.randint(0, h - 1)
+        sd = rng.randint(5, 40)
+        bg_draw.point((px, py), fill=(235 - sd, 235 - sd, 233 - sd))
+
+    # ---- load font ----
+    font_size = rng.randint(50, 64)
+    font = None
+    for fname in ("arial.ttf", "C:\\Windows\\Fonts\\arial.ttf",
+                  "C:\\Windows\\Fonts\\consola.ttf", "C:\\Windows\\Fonts\\segoeui.ttf"):
         try:
-            font = ImageFont.truetype("C:\\Windows\\Fonts\\arial.ttf", 60)
+            font = ImageFont.truetype(fname, font_size)
+            break
         except Exception:
-            font = ImageFont.load_default()
+            continue
+    if font is None:
+        font = ImageFont.load_default()
 
-    char_w = w // len(code)
+    # ---- per-character rendering with individual transforms ----
+    char_layers = []
+    char_slot_w = w // len(code) + 20
     for idx, ch in enumerate(code):
-        x_offset = idx * char_w + random.randint(10, 30)
-        y_offset = random.randint(10, 20)
-        draw.text((x_offset, y_offset), ch, fill=random.randint(0, 60), font=font)
+        c_img = Image.new('RGBA', (char_slot_w + 40, h + 50), (0, 0, 0, 0))
+        c_draw = ImageDraw.Draw(c_img)
+        x_off = rng.randint(6, 28)
+        y_off = rng.randint(10, 35)
+        c_draw.text((x_off, y_off), ch, fill=colors[idx], font=font)
+        angle = rng.uniform(-22, 22)
+        c_img = c_img.rotate(angle, expand=True, resample=Image.BICUBIC,
+                             fillcolor=(0, 0, 0, 0))
+        char_layers.append(c_img)
 
-    img = img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    # ---- composite characters onto text layer ----
+    text_layer = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    overlap = rng.randint(5, 18)
+    for idx, c_img in enumerate(char_layers):
+        base_x = idx * (w // len(code)) - overlap
+        base_y = rng.randint(-20, -5)
+        text_layer.paste(c_img, (base_x, base_y), c_img)
+
+    # ---- merge text onto background ----
+    text_arr = np.array(text_layer.convert('RGB'))
+    bg_arr = np.array(bg_img)
+    alpha = np.array(text_layer)[:, :, 3].astype(np.float32) / 255.0
+    alpha = np.expand_dims(alpha, axis=2)
+    merged = (text_arr.astype(np.float32) * alpha +
+              bg_arr.astype(np.float32) * (1 - alpha)).astype(np.uint8)
+
+    # ---- wave distortion ----
+    merged = _apply_wave_distortion(merged, seed)
+    distorted = Image.fromarray(merged)
+    draw = ImageDraw.Draw(distorted)
+
+    # ---- bezier interference curves ----
+    for _ in range(rng.randint(3, 7)):
+        pts = [(rng.randint(0, w), rng.randint(0, h)) for _ in range(4)]
+        curve_color = (rng.randint(60, 190), rng.randint(60, 190), rng.randint(60, 190))
+        curve_w = rng.randint(1, 3)
+        segments = 50
+        for j in range(segments):
+            t0 = j / segments
+            t1 = (j + 1) / segments
+            x0, y0 = _bezier_point(pts, t0)
+            x1, y1 = _bezier_point(pts, t1)
+            draw.line([(x0, y0), (x1, y1)], fill=curve_color, width=curve_w)
+
+    # ---- arc / ellipse interference ----
+    for _ in range(rng.randint(2, 5)):
+        ax = rng.randint(20, w - 100)
+        ay = rng.randint(10, h - 70)
+        arx = rng.randint(18, 70)
+        ary = rng.randint(8, 30)
+        arc_col = (rng.randint(50, 160), rng.randint(50, 160), rng.randint(50, 160))
+        arc_start = rng.randint(0, 180)
+        arc_end = rng.randint(180, 360)
+        draw.arc([ax, ay, ax + arx, ay + ary], arc_start, arc_end,
+                 fill=arc_col, width=rng.randint(1, 3))
+
+    # ---- dense point noise ----
+    for _ in range(rng.randint(250, 500)):
+        nx = rng.randint(0, w - 1)
+        ny = rng.randint(0, h - 1)
+        dn = rng.randint(0, 200)
+        draw.point((nx, ny), fill=(dn, dn, dn))
+
+    # ---- short random line noise ----
+    for _ in range(rng.randint(12, 30)):
+        lx1 = rng.randint(0, w - 1)
+        ly1 = rng.randint(0, h - 1)
+        lx2 = min(lx1 + rng.randint(-25, 25), w - 1)
+        ly2 = min(ly1 + rng.randint(-25, 25), h - 1)
+        ln = rng.randint(50, 180)
+        draw.line([(lx1, ly1), (lx2, ly2)], fill=(ln, ln, ln),
+                  width=rng.randint(1, 2))
+
+    # ---- small rectangle / shape noise ----
+    for _ in range(rng.randint(3, 8)):
+        rx = rng.randint(5, w - 30)
+        ry = rng.randint(5, h - 20)
+        rw = rng.randint(6, 20)
+        rh = rng.randint(3, 10)
+        rn = rng.randint(40, 170)
+        draw.rectangle([rx, ry, rx + rw, ry + rh], outline=(rn, rn, rn),
+                       width=rng.randint(1, 2))
+
+    # ---- Gaussian blur for edge softening ----
+    blur_radius = rng.uniform(0.5, 1.3)
+    distorted = distorted.filter(ImageFilter.GaussianBlur(radius=blur_radius))
 
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    distorted.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
-    return code, b64, img
+    return code, b64
 
 
 def _ml_captcha(be):
@@ -141,7 +316,19 @@ def _ml_captcha(be):
     buf = io.BytesIO()
     pil.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
-    return gt, b64, img_np
+    return gt, b64
+
+
+def _generate_one_captcha():
+    be = _get_backend()
+    if be is not None:
+        try:
+            gt, b64 = _ml_captcha(be)
+            return gt, b64
+        except Exception as e:
+            print(f"[WARNING] CNN captcha failed: {e}")
+    gt, b64 = _generate_enhanced_captcha()
+    return gt, b64
 
 
 HTML_PATH = os.path.join(ROOT, "templates", "login.html")
@@ -165,15 +352,6 @@ class RequestHandler(BaseHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(length))
 
-    def _check_auth(self) -> str:
-        body = self._read_body()
-        token = body.get("auth_token", "")
-        session = SESSIONS.get(f"user_{token}")
-        if not session or time.time() - session.get("created", 0) > SESSION_TTL:
-            self._send_json({"success": False, "message": "登录已过期，请重新登录"}, 401)
-            return ""
-        return token
-
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -182,8 +360,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if self.path == "/api/captcha":
-            self._handle_get_captcha()
+        if self.path == "/api/captcha-challenge":
+            self._handle_captcha_challenge()
         elif self.path == "/api/health":
             self._send_json({
                 "status": "ok",
@@ -196,18 +374,16 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "Not Found"}, 404)
 
     def do_POST(self):
-        if self.path == "/api/send-code":
-            self._handle_send_code()
-        elif self.path == "/api/login":
-            self._handle_login()
+        if self.path == "/api/captcha-challenge":
+            self._handle_captcha_challenge()
+        elif self.path == "/api/verify-captcha":
+            self._handle_verify_captcha()
         elif self.path == "/api/digit-recognize":
             self._handle_digit_recognize()
         elif self.path == "/api/digit-recognize-multi":
             self._handle_digit_recognize_multi()
         else:
             self._send_json({"error": "Not Found"}, 404)
-
-    # ---- serve HTML ----
 
     def _serve_html(self):
         try:
@@ -223,119 +399,72 @@ class RequestHandler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             self._send_json({"error": "HTML file not found"}, 500)
 
-    # ---- captcha ----
-
-    def _handle_get_captcha(self):
+    def _handle_captcha_challenge(self):
         _clean_sessions()
         sid = uuid.uuid4().hex
-        be = _get_backend()
+        rng = np.random.default_rng()
 
-        if be is not None:
-            try:
-                gt, b64, img_np = _ml_captcha(be)
-                SESSIONS[sid] = {
-                    "ground_truth": gt, "image_np": img_np, "created": time.time(),
-                }
-                self._send_json({
-                    "session_id": sid,
-                    "captcha_image": f"data:image/png;base64,{b64}",
-                    "code_length": 4,
-                })
-                return
-            except Exception as e:
-                print(f"[WARNING] CNN captcha failed: {e}")
+        images = []
+        ground_truths = []
 
-        code, b64, _ = _generate_simple_captcha()
-        SESSIONS[sid] = {"ground_truth": code, "captcha_code": code, "created": time.time()}
+        for _ in range(4):
+            gt, b64 = _generate_one_captcha()
+            images.append(f"data:image/png;base64,{b64}")
+            ground_truths.append(gt)
+
+        target_index = int(rng.integers(0, 4))
+        target_code = ground_truths[target_index]
+
+        SESSIONS[sid] = {
+            "ground_truths": ground_truths,
+            "target_index": target_index,
+            "target_code": target_code,
+            "created": time.time(),
+            "attempts": 0,
+        }
+
         self._send_json({
             "session_id": sid,
-            "captcha_image": f"data:image/png;base64,{b64}",
-            "code_length": 4,
+            "images": images,
+            "target_code": target_code,
         })
 
-    # ---- SMS ----
-
-    def _handle_send_code(self):
+    def _handle_verify_captcha(self):
         body = self._read_body()
-        contact = body.get("contact", "").strip()
-        if not contact:
-            self._send_json({"success": False, "message": "请输入手机号或邮箱"}, 400)
+        sid = body.get("session_id", "")
+        selected = body.get("selected", -1)
+
+        session = SESSIONS.get(sid)
+        if not session:
+            self._send_json({"success": False, "message": "验证已过期，请刷新重试"}, 400)
             return
-        is_email = "@" in contact
-        if is_email:
-            if len(contact) > 100 or " " in contact:
-                self._send_json({"success": False, "message": "邮箱格式不正确"}, 400)
-                return
+
+        session["attempts"] = session.get("attempts", 0) + 1
+        if session["attempts"] > 5:
+            del SESSIONS[sid]
+            self._send_json({"success": False, "message": "尝试次数过多，请刷新重试"}, 429)
+            return
+
+        if not isinstance(selected, int) or selected < 1 or selected > 4:
+            self._send_json({"success": False, "message": "请选择有效的图片编号（1-4）"}, 400)
+            return
+
+        if session["ground_truths"][selected - 1] == session["target_code"]:
+            user_token = uuid.uuid4().hex
+            SESSIONS[f"user_{user_token}"] = {
+                "contact": "验证通过", "created": time.time(),
+            }
+            del SESSIONS[sid]
+            self._send_json({
+                "success": True,
+                "auth_token": user_token,
+                "message": "验证通过！",
+            })
         else:
-            digits_only = "".join(c for c in contact if c.isdigit())
-            if len(digits_only) != 11:
-                self._send_json({"success": False, "message": "请输入正确的11位手机号"}, 400)
-                return
-
-        rng = np.random.default_rng()
-        code = "".join(str(rng.integers(0, 10)) for _ in range(6))
-        sid = uuid.uuid4().hex
-        SESSIONS[f"sms_{sid}"] = {
-            "contact": contact, "sms_code": code, "created": time.time(), "attempts": 0,
-        }
-        print(f"[SMS] {contact}: {code}")
-        self._send_json({
-            "success": True, "session_id": sid,
-            "message": f"验证码已发送至 {contact}", "demo_code": code,
-        })
-
-    # ---- login ----
-
-    def _handle_login(self):
-        body = self._read_body()
-        contact = body.get("contact", "").strip()
-        sms_code = body.get("sms_code", "").strip()
-        captcha_input = body.get("captcha_input", "").strip()
-        sms_sid = body.get("sms_session_id", "")
-        captcha_sid = body.get("captcha_session_id", "")
-
-        if not contact:
-            self._send_json({"success": False, "message": "请输入手机号或邮箱"}, 400)
-            return
-        if not sms_code:
-            self._send_json({"success": False, "message": "请输入短信验证码"}, 400)
-            return
-        if not captcha_input:
-            self._send_json({"success": False, "message": "请输入图形验证码"}, 400)
-            return
-
-        sms_session = SESSIONS.get(f"sms_{sms_sid}") if sms_sid else None
-        if sms_session:
-            sms_session["attempts"] = sms_session.get("attempts", 0) + 1
-            if sms_session["attempts"] > 5:
-                self._send_json({"success": False, "message": "验证次数过多，请重新获取验证码"}, 429)
-                return
-            if sms_code != sms_session.get("sms_code", ""):
-                self._send_json({"success": False, "message": "短信验证码错误"}, 401)
-                return
-        else:
-            if sms_code != "123456":
-                self._send_json({"success": False, "message": "短信验证码错误或已过期"}, 401)
-                return
-
-        captcha_session = SESSIONS.get(captcha_sid) if captcha_sid else None
-        if not captcha_session:
-            self._send_json({"success": False, "message": "图形验证码已过期，请刷新重试"}, 400)
-            return
-        if captcha_input != captcha_session.get("ground_truth", ""):
-            self._send_json({"success": False, "message": "图形验证码错误，请重新输入"}, 401)
-            return
-
-        user_token = uuid.uuid4().hex
-        SESSIONS[f"user_{user_token}"] = {
-            "contact": contact, "created": time.time(),
-        }
-        self._send_json({
-            "success": True, "auth_token": user_token,
-            "message": f"登录成功！欢迎 {contact}",
-        })
-
-    # ---- digit recognition ----
+            self._send_json({
+                "success": False,
+                "message": "验证失败，您选择的图片不包含目标数字，请重新尝试",
+            })
 
     def _decode_image_to_rgb(self, b64_data):
         if b64_data.startswith("data:"):
