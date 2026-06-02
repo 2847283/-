@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+.env
+.DS_Store
+Thumbs.db
+*.log
+pip_install.log
+data/captcha_dataset.npz

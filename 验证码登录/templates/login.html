@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>验证码图片选择 · 手写数字识别</title>
+<style>
+:root {
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-light: #EEF2FF;
+  --danger: #EF4444;
+  --danger-light: #FEF2F2;
+  --success: #10B981;
+  --success-light: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-light: #FFFBEB;
+  --gray-50: #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --gray-700: #374151;
+  --gray-800: #1F2937;
+  --gray-900: #111827;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -4px rgba(0,0,0,0.1);
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+
+#app{
+  width:100%;
+  max-width:640px;
+  position:relative;
+  min-height:560px;
+}
+
+.page{
+  position:absolute;
+  inset:0;
+  transition:opacity 0.35s ease,transform 0.35s ease;
+}
+
+.page.hidden{
+  opacity:0;
+  transform:translateY(20px);
+  pointer-events:none;
+}
+
+.page.visible{
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+
+.card{
+  background:#fff;
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-lg),0 20px 60px rgba(0,0,0,0.15);
+  overflow:hidden;
+}
+
+.login-container{animation:slideUp 0.5s ease;}
+
+@keyframes slideUp{
+  from{opacity:0;transform:translateY(24px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.login-header{
+  padding:28px 28px 0;
+  text-align:center;
+}
+
+.login-header .logo{
+  width:56px;height:56px;
+  background:linear-gradient(135deg,var(--primary),#7C3AED);
+  border-radius:var(--radius);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:16px;
+}
+
+.login-header .logo svg{width:28px;height:28px;color:#fff;}
+
+.login-header h1{font-size:22px;font-weight:700;color:var(--gray-900);margin-bottom:6px;}
+
+.login-header p{font-size:14px;color:var(--gray-500);}
+
+.login-body{padding:24px 28px 28px;}
+
+/* ---- target digit display ---- */
+.target-section{
+  text-align:center;
+  background:linear-gradient(135deg,var(--primary-light),#F5F3FF);
+  border:2px solid #C7D2FE;
+  border-radius:var(--radius);
+  padding:20px 16px;
+  margin-bottom:20px;
+}
+
+.target-label{
+  font-size:13px;
+  font-weight:600;
+  color:var(--gray-600);
+  margin-bottom:8px;
+}
+
+.target-code{
+  font-size:48px;
+  font-weight:800;
+  color:var(--primary);
+  letter-spacing:12px;
+  line-height:1.2;
+}
+
+.target-hint{
+  font-size:14px;
+  color:var(--gray-600);
+  margin-top:10px;
+  font-weight:500;
+}
+
+/* ---- captcha grid ---- */
+.captcha-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.captcha-item{
+  background:var(--gray-50);
+  border:3px solid var(--gray-200);
+  border-radius:var(--radius);
+  overflow:hidden;
+  cursor:pointer;
+  transition:var(--transition);
+  position:relative;
+  text-align:center;
+}
+
+.captcha-item:hover{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,0.15);}
+
+.captcha-item.selected{
+  border-color:var(--primary);
+  background:var(--primary-light);
+  box-shadow:0 0 0 3px rgba(79,70,229,0.25);
+}
+
+.captcha-item.wrong{
+  border-color:var(--danger);
+  background:var(--danger-light);
+  animation:shake 0.5s ease;
+}
+
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(4px);}
+}
+
+.captcha-item.correct{
+  border-color:var(--success);
+  background:var(--success-light);
+  box-shadow:0 0 0 3px rgba(16,185,129,0.25);
+}
+
+.captcha-number{
+  position:absolute;
+  top:8px;
+  left:10px;
+  background:rgba(0,0,0,0.55);
+  color:#fff;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  font-size:12px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:2;
+}
+
+.captcha-item.selected .captcha-number{
+  background:var(--primary);
+}
+
+.captcha-item img{
+  width:100%;
+  height:88px;
+  object-fit:contain;
+  display:block;
+}
+
+.captcha-item .check-mark{
+  position:absolute;
+  top:8px;
+  right:10px;
+  width:28px;
+  height:28px;
+  background:var(--success);
+  border-radius:50%;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:2;
+}
+
+.captcha-item.correct .check-mark{display:flex;}
+
+.captcha-item.correct .check-mark svg{width:16px;height:16px;color:#fff;}
+
+/* ---- buttons ---- */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:12px 20px;
+  border:none;
+  border-radius:var(--radius-sm);
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:var(--transition);
+  white-space:nowrap;
+  outline:none;
+  font-family:inherit;
+}
+
+.btn:active{transform:scale(0.97);}
+
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+
+.btn-verify{
+  width:100%;
+  padding:13px 20px;
+  background:var(--primary);
+  color:#fff;
+  font-size:16px;
+  margin-top:8px;
+}
+
+.btn-verify:hover:not(:disabled){
+  background:var(--primary-hover);
+  box-shadow:0 4px 12px rgba(79,70,229,0.35);
+}
+
+.btn-verify .spinner{
+  display:none;
+  width:18px;height:18px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin 0.6s linear infinite;
+}
+
+.btn-verify.loading .spinner{display:block;}
+
+.btn-verify.loading .btn-text{display:none;}
+
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.btn-refresh{
+  width:100%;
+  margin-top:10px;
+  background:var(--gray-100);
+  color:var(--gray-700);
+  border:2px solid var(--gray-200);
+}
+
+.btn-refresh:hover:not(:disabled){
+  background:var(--gray-200);
+  border-color:var(--gray-300);
+}
+
+/* ---- messages ---- */
+.error-message,.success-message,.info-message{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  padding:10px 14px;
+  border-radius:var(--radius-sm);
+  font-size:13px;
+  font-weight:500;
+  animation:slideDown 0.3s ease;
+  margin-bottom:14px;
+}
+
+@keyframes slideDown{
+  from{opacity:0;transform:translateY(-8px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.error-message{background:var(--danger-light);color:var(--danger);border:1px solid #FECACA;}
+
+.success-message{background:var(--success-light);color:#065F46;border:1px solid #A7F3D0;}
+
+.info-message{background:var(--warning-light);color:#92400E;border:1px solid #FDE68A;}
+
+.message-icon{flex-shrink:0;width:18px;height:18px;margin-top:1px;}
+
+.message-text{flex:1;line-height:1.5;}
+
+.login-footer{text-align:center;padding:0 28px 20px;font-size:12px;color:var(--gray-400);}
+
+/* ============== digit recognition page ============== */
+
+.digit-header{
+  padding:24px 28px 0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.digit-header .back-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:none;
+  border:none;
+  font-size:13px;
+  color:var(--primary);
+  cursor:pointer;
+  font-weight:600;
+  padding:6px 10px;
+  border-radius:6px;
+  transition:var(--transition);
+  font-family:inherit;
+}
+
+.digit-header .back-btn:hover{background:var(--primary-light);}
+
+.digit-header .back-btn svg{width:16px;height:16px;}
+
+.digit-header .user-badge{
+  font-size:12px;
+  color:var(--gray-500);
+  background:var(--gray-100);
+  padding:4px 12px;
+  border-radius:20px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.digit-header .user-badge svg{width:14px;height:14px;}
+
+.digit-title{
+  text-align:center;
+  padding:12px 28px 0;
+}
+
+.digit-title h2{font-size:20px;font-weight:700;color:var(--gray-900);margin-bottom:4px;}
+
+.digit-title p{font-size:13px;color:var(--gray-500);}
+
+.mode-toggle-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:10px 28px 6px;
+}
+
+.mode-label{
+  font-size:13px;
+  font-weight:600;
+  color:var(--gray-500);
+  transition:var(--transition);
+}
+
+.mode-label.active{color:var(--primary);}
+
+.toggle-switch{
+  position:relative;
+  display:inline-block;
+  width:46px;
+  height:26px;
+}
+
+.toggle-switch input{opacity:0;width:0;height:0;}
+
+.toggle-slider{
+  position:absolute;
+  inset:0;
+  background:var(--gray-300);
+  border-radius:26px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.toggle-slider::before{
+  content:'';
+  position:absolute;
+  width:20px;
+  height:20px;
+  left:3px;
+  bottom:3px;
+  background:#fff;
+  border-radius:50%;
+  transition:0.3s;
+  box-shadow:var(--shadow-sm);
+}
+
+.toggle-switch input:checked+.toggle-slider{background:var(--primary);}
+
+.toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px);}
+
+.multi-result{
+  text-align:center;
+  padding:12px;
+}
+
+.multi-sequence{
+  font-size:42px;
+  font-weight:800;
+  color:var(--primary);
+  letter-spacing:8px;
+  margin-bottom:14px;
+  word-break:break-all;
+}
+
+.multi-digits-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+}
+
+.multi-digit-chip{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:8px 14px;
+  background:var(--primary-light);
+  border-radius:var(--radius-sm);
+  min-width:52px;
+}
+
+.multi-digit-chip .chip-digit{
+  font-size:28px;
+  font-weight:800;
+  color:var(--primary);
+  line-height:1;
+}
+
+.multi-digit-chip .chip-conf{
+  font-size:11px;
+  color:var(--gray-500);
+  margin-top:2px;
+}
+
+.digit-body{padding:20px 28px 28px;}
+
+.drawing-area{
+  border:2px dashed var(--gray-300);
+  border-radius:var(--radius);
+  background:#fff;
+  cursor:crosshair;
+  position:relative;
+  overflow:hidden;
+  margin-bottom:14px;
+  transition:var(--transition);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.drawing-area:hover{border-color:var(--primary);}
+
+.drawing-area canvas{
+  display:block;
+  touch-action:none;
+}
+
+.drawing-area .placeholder{
+  position:absolute;
+  font-size:14px;
+  color:var(--gray-400);
+  pointer-events:none;
+}
+
+.digit-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:18px;
+}
+
+.btn-clear{
+  flex:1;
+  background:var(--gray-100);
+  color:var(--gray-700);
+  border:2px solid var(--gray-200);
+}
+
+.btn-clear:hover{background:var(--gray-200);border-color:var(--gray-300);}
+
+.btn-recognize{
+  flex:2;
+  background:var(--primary);
+  color:#fff;
+}
+
+.btn-recognize:hover:not(:disabled){
+  background:var(--primary-hover);
+  box-shadow:0 4px 12px rgba(79,70,229,0.35);
+}
+
+.btn-recognize:disabled{background:var(--gray-300);cursor:not-allowed;box-shadow:none;}
+
+.btn-recognize .spinner{
+  display:none;
+  width:18px;height:18px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin 0.6s linear infinite;
+}
+
+.btn-recognize.loading .spinner{display:block;}
+
+.btn-recognize.loading .btn-text{display:none;}
+
+.result-area{margin-bottom:16px;}
+
+.result-digit{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  padding:16px;
+  background:var(--primary-light);
+  border-radius:var(--radius-sm);
+  margin-bottom:14px;
+}
+
+.result-digit .big-digit{
+  font-size:56px;
+  font-weight:800;
+  color:var(--primary);
+  line-height:1;
+}
+
+.result-digit .conf{
+  font-size:13px;
+  color:var(--gray-600);
+  text-align:center;
+}
+
+.result-digit .conf strong{display:block;font-size:22px;color:var(--success);}
+
+.bar-group{margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+
+.bar-label{
+  width:18px;
+  text-align:right;
+  font-size:14px;
+  font-weight:700;
+  color:var(--gray-700);
+  flex-shrink:0;
+}
+
+.bar-track{
+  flex:1;
+  height:22px;
+  background:var(--gray-100);
+  border-radius:6px;
+  overflow:hidden;
+  position:relative;
+}
+
+.bar-fill{
+  height:100%;
+  border-radius:6px;
+  transition:width 0.5s ease;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding-right:8px;
+  font-size:11px;
+  font-weight:600;
+  color:#fff;
+  min-width:0;
+}
+
+.bar-fill.high{background:linear-gradient(90deg,var(--primary),#7C3AED);}
+
+.bar-fill.mid{background:linear-gradient(90deg,#818CF8,#A78BFA);}
+
+.bar-fill.low{background:linear-gradient(90deg,#C7D2FE,#DDD6FE);color:var(--gray-600);}
+
+.result-placeholder{
+  text-align:center;
+  padding:20px;
+  font-size:13px;
+  color:var(--gray-400);
+}
+
+.result-placeholder svg{width:40px;height:40px;margin-bottom:8px;opacity:0.5;}
+
+.tips-box{
+  background:var(--warning-light);
+  border:1px solid #FDE68A;
+  border-radius:var(--radius-sm);
+  padding:12px 14px;
+  font-size:12px;
+  color:#92400E;
+  line-height:1.7;
+  margin-top:16px;
+}
+
+.tips-box strong{display:block;margin-bottom:2px;}
+
+.cnn-prediction{
+  text-align:center;
+  font-size:12px;
+  color:var(--gray-500);
+  padding:4px 0 6px;
+  font-weight:500;
+  letter-spacing:1px;
+}
+
+@media (max-width:540px){
+  .login-header{padding:24px 20px 0;}
+  .login-body{padding:20px 20px 24px;}
+  .login-footer{padding:0 20px 20px;}
+  .captcha-grid{gap:8px;}
+  .captcha-item img{height:64px;}
+  .target-code{font-size:36px;letter-spacing:8px;}
+  .digit-header{padding:18px 20px 0;}
+  .digit-body{padding:16px 20px 24px;}
+  .digit-title{padding:10px 20px 0;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="page visible" id="loginPage">
+    <div class="card login-container">
+      <div class="login-header">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <circle cx="12" cy="16" r="1"/>
+          </svg>
+        </div>
+        <h1>安全验证</h1>
+        <p>请选择包含目标数字的验证码图片</p>
+      </div>
+
+      <div class="login-body">
+        <div id="globalMessage"></div>
+
+        <div class="target-section">
+          <div class="target-label">请找出包含以下数字的验证码图片</div>
+          <div class="target-code" id="targetCode">----</div>
+          <div class="target-hint">这串数字出现在哪张验证码图片中？</div>
+        </div>
+
+        <div class="captcha-grid" id="captchaGrid">
+          <div class="captcha-item" data-index="1" onclick="selectCaptcha(1)">
+            <span class="captcha-number">1</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 1" id="captchaImg1">
+            <div class="cnn-prediction" id="cnnPred1"></div>
+          </div>
+          <div class="captcha-item" data-index="2" onclick="selectCaptcha(2)">
+            <span class="captcha-number">2</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 2" id="captchaImg2">
+            <div class="cnn-prediction" id="cnnPred2"></div>
+          </div>
+          <div class="captcha-item" data-index="3" onclick="selectCaptcha(3)">
+            <span class="captcha-number">3</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 3" id="captchaImg3">
+            <div class="cnn-prediction" id="cnnPred3"></div>
+          </div>
+          <div class="captcha-item" data-index="4" onclick="selectCaptcha(4)">
+            <span class="captcha-number">4</span>
+            <span class="check-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <img src="" alt="验证码 4" id="captchaImg4">
+            <div class="cnn-prediction" id="cnnPred4"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-verify" id="btnVerify" onclick="verifyCaptcha()" disabled>
+          <span class="spinner"></span>
+          <span class="btn-text">请先选择一张图片</span>
+        </button>
+
+        <button class="btn btn-refresh" id="btnRefresh" onclick="refreshChallenge()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          换一组验证码
+        </button>
+      </div>
+
+      <div class="login-footer">安全验证 · 数据加密传输</div>
+    </div>
+  </div>
+
+  <!-- ===================== DIGIT RECOGNITION PAGE ===================== -->
+  <div class="page hidden" id="digitPage">
+    <div class="card">
+      <div class="digit-header">
+        <button class="back-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+          退出登录
+        </button>
+        <span class="user-badge" id="userBadge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span id="userName">已验证</span>
+        </span>
+      </div>
+
+      <div class="digit-title">
+        <h2 id="digitTitle">手写数字识别</h2>
+        <p id="digitSubtitle">在下方区域书写一个 0–9 的数字，然后点击识别</p>
+      </div>
+
+      <div class="mode-toggle-row">
+        <span class="mode-label" id="modeLabelSingle">单个数字</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="modeToggle" onchange="switchDigitMode()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="mode-label" id="modeLabelMulti">多个数字</span>
+      </div>
+
+      <div class="digit-body">
+        <div id="digitMessage"></div>
+
+        <div class="drawing-area" id="drawingArea">
+          <span class="placeholder" id="drawingPlaceholder">在此处书写数字</span>
+          <canvas id="drawCanvas"></canvas>
+        </div>
+
+        <div class="digit-actions">
+          <button class="btn btn-clear" onclick="clearCanvas()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            清空画板
+          </button>
+          <button class="btn btn-recognize" id="btnRecognize" onclick="recognizeDigit()">
+            <span class="spinner"></span>
+            <span class="btn-text">识别数字</span>
+          </button>
+        </div>
+
+        <div class="result-area" id="resultArea">
+          <div class="result-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <p>识别结果将在此处显示</p>
+          </div>
+        </div>
+
+        <div class="tips-box" id="tipsBox">
+          <strong>使用小贴士：</strong>
+          尽量把数字写在区域正中间 · 使用连贯的笔画 · 如果结果不理想，清空后重新书写
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var API = '';
+var sessionId = '';
+var authToken = '';
+var digitMode = 'single';
+var selectedIndex = 0;
+var verifying = false;
+
+function $(id){return document.getElementById(id);}
+
+/* ===================== VIEW SWITCHING ===================== */
+
+function switchView(showId, hideId){
+  var show = $(showId);
+  var hide = $(hideId);
+  hide.classList.add('hidden');
+  hide.classList.remove('visible');
+  show.classList.remove('hidden');
+  show.classList.add('visible');
+}
+
+function showGlobalMessage(type, message){
+  var icons={
+    error:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    success:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    info:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+  var cls=type==='error'?'error-message':type==='success'?'success-message':'info-message';
+  $('globalMessage').innerHTML='<div class="'+cls+'">'+icons[type]+'<span class="message-text">'+message+'</span></div>';
+}
+
+/* ===================== CAPTCHA CHALLENGE ===================== */
+
+async function refreshChallenge(){
+  $('globalMessage').innerHTML = '';
+  selectedIndex = 0;
+  var btn = $('btnVerify');
+  btn.disabled = true;
+  btn.classList.remove('loading');
+  btn.querySelector('.btn-text').textContent = '请先选择一张图片';
+
+  document.querySelectorAll('.captcha-item').forEach(function(el){
+    el.classList.remove('selected', 'correct', 'wrong');
+  });
+
+  $('targetCode').textContent = '----';
+
+  for (var i = 1; i <= 4; i++) {
+    $('captchaImg' + i).src = '';
+  }
+
+  try {
+    var resp = await fetch(API + '/api/captcha-challenge');
+    var data = await resp.json();
+
+    if (data.session_id && data.images && data.target_code) {
+      sessionId = data.session_id;
+      for (var i = 0; i < data.images.length; i++) {
+        $('captchaImg' + (i + 1)).src = data.images[i];
+      }
+      if (data.predictions) {
+        for (var i = 0; i < data.predictions.length; i++) {
+          var predEl = $('cnnPred' + (i + 1));
+          if (predEl) {
+            predEl.textContent = 'CNN识别: ' + (data.predictions[i] || '----');
+          }
+        }
+      } else {
+        for (var i = 1; i <= 4; i++) {
+          var predEl = $('cnnPred' + i);
+          if (predEl) predEl.textContent = '';
+        }
+      }
+      $('targetCode').textContent = data.target_code;
+    } else {
+      showGlobalMessage('error', data.error || '获取验证码失败');
+    }
+  } catch (e) {
+    showGlobalMessage('error', '网络错误，请确保服务已启动');
+  }
+}
+
+function selectCaptcha(index){
+  if (verifying) return;
+
+  document.querySelectorAll('.captcha-item').forEach(function(el){
+    el.classList.remove('selected');
+  });
+
+  $('globalMessage').innerHTML = '';
+  selectedIndex = index;
+
+  var item = document.querySelector('.captcha-item[data-index="' + index + '"]');
+  item.classList.add('selected');
+
+  var btn = $('btnVerify');
+  btn.disabled = false;
+  btn.querySelector('.btn-text').textContent = '确认选择（第 ' + index + ' 张图片）';
+}
+
+async function verifyCaptcha(){
+  if (verifying) return;
+  if (!selectedIndex) {
+    showGlobalMessage('info', '请先点击选择一张验证码图片');
+    return;
+  }
+
+  verifying = true;
+  var btn = $('btnVerify');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    var resp = await fetch(API + '/api/verify-captcha', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId, selected: selectedIndex})
+    });
+    var data = await resp.json();
+
+    if (data.success) {
+      var item = document.querySelector('.captcha-item[data-index="' + selectedIndex + '"]');
+      item.classList.add('correct');
+
+      authToken = data.auth_token;
+      showGlobalMessage('success', data.message || '验证通过！');
+
+      setTimeout(function(){
+        navigateToDigit();
+      }, 800);
+    } else {
+      var item = document.querySelector('.captcha-item[data-index="' + selectedIndex + '"]');
+      item.classList.add('wrong');
+      showGlobalMessage('error', data.message || '验证失败');
+
+      selectedIndex = 0;
+      btn.querySelector('.btn-text').textContent = '请先选择一张图片';
+      btn.disabled = true;
+
+      setTimeout(function(){
+        document.querySelectorAll('.captcha-item').forEach(function(el){
+          el.classList.remove('wrong', 'selected', 'correct');
+        });
+      }, 1200);
+
+      if (data.message && data.message.indexOf('过期') !== -1) {
+        setTimeout(refreshChallenge, 1500);
+      }
+    }
+  } catch (e) {
+    showGlobalMessage('error', '网络错误，请稍后重试');
+  } finally {
+    verifying = false;
+    btn.classList.remove('loading');
+  }
+}
+
+/* ===================== DIGIT RECOGNITION ===================== */
+
+function navigateToDigit(){
+  digitMode = 'single';
+  $('modeToggle').checked = false;
+  updateModeUI();
+  initCanvas();
+  $('digitMessage').innerHTML = '';
+  resetResults();
+  switchView('digitPage', 'loginPage');
+}
+
+function switchDigitMode(){
+  digitMode = $('modeToggle').checked ? 'multi' : 'single';
+  updateModeUI();
+  resetResults();
+  $('digitMessage').innerHTML = '';
+}
+
+function updateModeUI(){
+  var isMulti = digitMode === 'multi';
+  $('modeLabelSingle').classList.toggle('active', !isMulti);
+  $('modeLabelMulti').classList.toggle('active', isMulti);
+  if (isMulti) {
+    $('digitSubtitle').textContent = '在下方区域书写多个数字，系统将自动分割并逐个识别';
+    $('drawingPlaceholder').textContent = '在此处书写多个数字（左右排列）';
+    $('tipsBox').innerHTML = '<strong>使用小贴士：</strong>数字之间保持适当间距 · 从左到右书写 · 书写清晰避免连笔';
+  } else {
+    $('digitSubtitle').textContent = '在下方区域书写一个 0–9 的数字，然后点击识别';
+    $('drawingPlaceholder').textContent = '在此处书写数字';
+    $('tipsBox').innerHTML = '<strong>使用小贴士：</strong>尽量把数字写在区域正中间 · 使用连贯的笔画 · 如果结果不理想，清空后重新书写';
+  }
+}
+
+function logout(){
+  authToken = '';
+  selectedIndex = 0;
+  switchView('loginPage', 'digitPage');
+  refreshChallenge();
+}
+
+function showDigitMessage(type, message){
+  var icons={
+    error:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    success:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    info:'<svg class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+  var cls=type==='error'?'error-message':type==='success'?'success-message':'info-message';
+  $('digitMessage').innerHTML='<div class="'+cls+'">'+icons[type]+'<span class="message-text">'+message+'</span></div>';
+}
+
+/* ===================== CANVAS DRAWING ===================== */
+
+var canvas, ctx;
+var drawing=false;
+var hasDrawn=false;
+
+function initCanvas(){
+  canvas=$('drawCanvas');
+  ctx=canvas.getContext('2d');
+  var area=$('drawingArea');
+  var size=Math.min(area.clientWidth-4,280);
+  canvas.width=size;
+  canvas.height=size;
+  canvas.style.width=size+'px';
+  canvas.style.height=size+'px';
+  clearCanvas();
+
+  canvas.onmousedown=startDraw;
+  canvas.onmousemove=draw;
+  canvas.onmouseup=stopDraw;
+  canvas.onmouseleave=stopDraw;
+
+  canvas.ontouchstart=function(e){e.preventDefault();startDraw(e.touches[0]);};
+  canvas.ontouchmove=function(e){e.preventDefault();draw(e.touches[0]);};
+  canvas.ontouchend=stopDraw;
+}
+
+function startDraw(e){
+  drawing=true;
+  var rect=canvas.getBoundingClientRect();
+  var scaleX=canvas.width/rect.width;
+  var scaleY=canvas.height/rect.height;
+  ctx.beginPath();
+  ctx.moveTo((e.clientX-rect.left)*scaleX,(e.clientY-rect.top)*scaleY);
+}
+
+function draw(e){
+  if(!drawing)return;
+  var rect=canvas.getBoundingClientRect();
+  var scaleX=canvas.width/rect.width;
+  var scaleY=canvas.height/rect.height;
+  ctx.lineWidth=18;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.strokeStyle='#1F2937';
+  ctx.lineTo((e.clientX-rect.left)*scaleX,(e.clientY-rect.top)*scaleY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo((e.clientX-rect.left)*scaleX,(e.clientY-rect.top)*scaleY);
+  hasDrawn=true;
+  $('drawingPlaceholder').style.display='none';
+}
+
+function stopDraw(){
+  drawing=false;
+  ctx.beginPath();
+}
+
+function clearCanvas(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#FFFFFF';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  hasDrawn=false;
+  $('drawingPlaceholder').style.display='';
+  $('digitMessage').innerHTML='';
+  resetResults();
+}
+
+function getCanvasBase64(){
+  var tempCanvas=document.createElement('canvas');
+  tempCanvas.width=canvas.width;
+  tempCanvas.height=canvas.height;
+  var tempCtx=tempCanvas.getContext('2d');
+  tempCtx.fillStyle='#FFFFFF';
+  tempCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
+  tempCtx.drawImage(canvas,0,0);
+  return tempCanvas.toDataURL('image/png');
+}
+
+/* ===================== RECOGNITION ===================== */
+
+function resetResults(){
+  $('resultArea').innerHTML='\
+    <div class="result-placeholder">\
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">\
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>\
+      </svg>\
+      <p>识别结果将在此处显示</p>\
+    </div>';
+}
+
+function renderResults(data){
+  var digit=data.predicted_digit;
+  var conf=data.confidence;
+  var probs=data.probabilities;
+
+  var html='<div class="result-digit">\
+    <div class="big-digit">'+digit+'</div>\
+    <div class="conf">置信度<strong>'+conf+'%</strong></div>\
+  </div>';
+
+  for(var i=0;i<10;i++){
+    var p=probs[String(i)]||0;
+    var cls=p>=80?'high':p>=30?'mid':'low';
+    html+='<div class="bar-group">\
+      <span class="bar-label">'+i+'</span>\
+      <div class="bar-track"><div class="bar-fill '+cls+'" style="width:'+Math.max(p,1)+'%">'+(p>=8?p+'%':'')+'</div></div>\
+    </div>';
+  }
+
+  $('resultArea').innerHTML=html;
+}
+
+function renderMultiResults(data){
+  var seq=data.sequence||'';
+  var digits=data.digits||[];
+  var count=data.count||0;
+
+  var html='<div class="multi-result">\
+    <div class="multi-sequence">'+(seq||'无')+'</div>\
+    <div style="font-size:13px;color:var(--gray-500);margin-bottom:10px">共识别到 <b>'+count+'</b> 个数字</div>';
+
+  if(digits.length>0){
+    html+='<div class="multi-digits-row">';
+    for(var i=0;i<digits.length;i++){
+      var d=digits[i];
+      html+='<div class="multi-digit-chip">\
+        <span class="chip-digit">'+d.digit+'</span>\
+        <span class="chip-conf">'+d.confidence+'%</span>\
+      </div>';
+    }
+    html+='</div>';
+  }
+
+  html+='</div>';
+  $('resultArea').innerHTML=html;
+}
+
+async function recognizeDigit(){
+  if(!hasDrawn){
+    showDigitMessage('info',digitMode==='multi'?'请先在画板中书写数字':'请先在画板中书写一个数字');
+    return;
+  }
+  if(!authToken){showDigitMessage('error','登录已过期，请重新登录');setTimeout(logout,1500);return;}
+
+  var btn=$('btnRecognize');
+  btn.classList.add('loading');
+  btn.disabled=true;
+
+  try{
+    var b64=getCanvasBase64();
+    var endpoint=digitMode==='multi'?'/api/digit-recognize-multi':'/api/digit-recognize';
+    var resp=await fetch(API+endpoint,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({auth_token:authToken,image:b64})
+    });
+    var data=await resp.json();
+
+    if(data.success){
+      $('digitMessage').innerHTML='';
+      if(data.mode==='multi'){
+        renderMultiResults(data);
+      }else{
+        renderResults(data);
+      }
+    }else{
+      showDigitMessage('error',data.message||'识别失败');
+      if(data.message&&data.message.indexOf('登录')!==-1)setTimeout(logout,2000);
+    }
+  }catch(e){
+    showDigitMessage('error','网络错误，请稍后重试');
+  }finally{
+    btn.classList.remove('loading');
+    btn.disabled=false;
+  }
+}
+
+/* ===================== INIT ===================== */
+
+document.addEventListener('DOMContentLoaded', function(){
+  refreshChallenge();
+});
+</script>
+
+</body>
+</html>
